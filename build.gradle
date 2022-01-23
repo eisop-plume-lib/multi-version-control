@@ -3,13 +3,13 @@ plugins {
   id 'application'
 
   // To create a fat jar build/libs/multi-version-control-all.jar, run: ./gradlew shadowJar
-  id 'com.github.johnrengelman.shadow' version '7.0.0'
+  id 'com.github.johnrengelman.shadow' version '7.1.2'
 
   // Error Prone linter
   id("net.ltgt.errorprone") version "2.0.2"
 
   // Checker Framework pluggable type-checking
-  id 'org.checkerframework' version '0.5.24'
+  id 'org.checkerframework' version '0.6.7'
 }
 
 repositories {
@@ -42,7 +42,7 @@ targetCompatibility = 1.8
 /// Error Prone linter
 
 dependencies {
-  errorprone("com.google.errorprone:error_prone_core:2.9.0")
+  errorprone("com.google.errorprone:error_prone_core:2.10.0")
   // JDK 8 support for Error Prone:
   errorproneJavac("com.google.errorprone:javac:9+181-r4173-1")
 }
