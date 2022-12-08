@@ -2,11 +2,13 @@ package org.plumelib.multiversioncontrol;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -69,13 +71,19 @@ import org.tmatesoft.svn.core.wc.SVNWCClient;
 //  * mvc's configuration files tend to be smaller & simpler
 
 /**
- * This program lets you run a version control command, such as "status" or "pull", on a <b>set</b>
- * of CVS/Git/Hg/SVN clones/checkouts rather than just one.
+ * This program simplifies managing your clones/checkouts. This program lets you run a version
+ * control command, such as "status" or "pull", on a <b>set</b> of CVS/Git/Hg/SVN clones/checkouts
+ * rather than just one. You might want to pull/update all of them, or you might want to know
+ * whether any of them have uncommitted changes. When setting up a new account, you might want to
+ * clone them all. This program does those tasks.
  *
- * <p>This program simplifies managing your clones/checkouts. You might want to pull/update all of
- * them, or you might want to know whether any of them have uncommitted changes. When setting up a
- * new account, you might want to clone or check them all out. This program does those tasks. It
- * accepts these arguments:
+ * <p>You can specify the set of clones for the program to manage in a file {@code .mvc-checkouts},
+ * or you can pass {@code --search} to make the program search your directory structure to find all
+ * of your clones. For example, to list all un-committed changed files under your home directory:
+ *
+ * <pre>java org.plumelib.multiversioncontrol.MultiVersionControl status --search=true</pre>
+ *
+ * This program accepts these arguments:
  *
  * <pre>
  *   clone     -- Clone (check out) all repositories.
@@ -88,15 +96,9 @@ import org.tmatesoft.svn.core.wc.SVNWCClient;
  * </pre>
  *
  * (The {@code commit} action is not supported, because that is not something that should be done in
- * an automated way -- it needs a user-written commit message.)
+ * an automated way &mdash; it needs a user-written commit message.)
  *
- * <p>You can specify the set of clones for the program to manage in a file {@code .mvc-checkouts},
- * or you can pass {@code --search} to make the program search your directory structure to find all
- * of your clones. For example, to list all un-committed changed files under your home directory:
- *
- * <pre>java org.plumelib.multiversioncontrol.MultiVersionControl status --search=true</pre>
- *
- * <b>Command-line arguments</b>
+ * <p><b>Command-line arguments</b>
  *
  * <p>The command-line options are as follows:
  * <!-- start options doc (DO NOT EDIT BY HAND) -->
@@ -558,7 +560,7 @@ public class MultiVersionControl {
     String[] remainingArgs = options.parse(true, args);
     if (remainingArgs.length != 1) {
       System.out.printf(
-          "Please supply exactly one argument (found %d)%n%s",
+          "Please supply exactly one argument (found %d)%n  %s%n",
           remainingArgs.length, String.join(" ", remainingArgs));
       options.printUsage();
       System.exit(1);
@@ -687,7 +689,7 @@ public class MultiVersionControl {
       try {
         this.canonicalDirectory = directory.getCanonicalPath();
       } catch (IOException e) {
-        throw new Error(e);
+        throw new UncheckedIOException(e);
       }
       this.repository = repository;
       this.module = module;
@@ -795,134 +797,140 @@ public class MultiVersionControl {
     String currentRoot = null;
     boolean currentRootIsRepos = false;
 
-    EntryReader er = new EntryReader(file);
-    for (String line : er) {
-      if (debug) {
-        System.out.println("line: " + line);
-      }
-      line = line.trim();
-      // Skip comments and blank lines
-      if (line.equals("") || line.startsWith("#")) {
-        continue;
-      }
-
-      String[] splitTwo = line.split("[ \t]+");
-      if (debug) {
-        System.out.println("split length: " + splitTwo.length);
-      }
-      if (splitTwo.length == 2) {
-        String word1 = splitTwo[0];
-        String word2 = splitTwo[1];
-        if (word1.equals("BZRROOT:") || word1.equals("BZRREPOS:")) {
-          currentType = RepoType.BZR;
-          currentRoot = word2;
-          currentRootIsRepos = word1.equals("BZRREPOS:");
+    try (EntryReader er = new EntryReader(file)) {
+      for (String line : er) {
+        if (debug) {
+          System.out.println("line: " + line);
+        }
+        line = line.trim();
+        // Skip comments and blank lines
+        if (line.equals("") || line.startsWith("#")) {
           continue;
-        } else if (word1.equals("CVSROOT:")) {
-          currentType = RepoType.CVS;
-          currentRoot = word2;
-          currentRootIsRepos = false;
-          // If the CVSROOT is remote, try to make it local.
-          if (currentRoot.startsWith(":ext:")) {
-            String[] rootWords = currentRoot.split(":");
-            String possibleRoot = rootWords[rootWords.length - 1];
-            if (new File(possibleRoot).isDirectory()) {
-              currentRoot = possibleRoot;
+        }
+
+        String[] splitTwo = line.split("[ \t]+");
+        if (debug) {
+          System.out.println("split length: " + splitTwo.length);
+        }
+        if (splitTwo.length == 2) {
+          String word1 = splitTwo[0];
+          String word2 = splitTwo[1];
+          if (word1.equals("BZRROOT:") || word1.equals("BZRREPOS:")) {
+            currentType = RepoType.BZR;
+            currentRoot = word2;
+            currentRootIsRepos = word1.equals("BZRREPOS:");
+            continue;
+          } else if (word1.equals("CVSROOT:")) {
+            currentType = RepoType.CVS;
+            currentRoot = word2;
+            currentRootIsRepos = false;
+            // If the CVSROOT is remote, try to make it local.
+            if (currentRoot.startsWith(":ext:")) {
+              String[] rootWords = currentRoot.split(":");
+              String possibleRoot = rootWords[rootWords.length - 1];
+              if (new File(possibleRoot).isDirectory()) {
+                currentRoot = possibleRoot;
+              }
+            }
+            continue;
+          } else if (word1.equals("HGROOT:") || word1.equals("HGREPOS:")) {
+            currentType = RepoType.HG;
+            currentRoot = word2;
+            currentRootIsRepos = word1.equals("HGREPOS:");
+            continue;
+          } else if (word1.equals("GITROOT:") || word1.equals("GITREPOS:")) {
+            currentType = RepoType.GIT;
+            currentRoot = word2;
+            currentRootIsRepos = word1.equals("GITREPOS:");
+            continue;
+          } else if (word1.equals("SVNROOT:") || word1.equals("SVNREPOS:")) {
+            currentType = RepoType.SVN;
+            currentRoot = word2;
+            currentRootIsRepos = word1.equals("SVNREPOS:");
+            continue;
+          }
+        }
+
+        if (currentRoot == null) {
+          System.err.printf(
+              "need root before directory at line %d of file %s%n",
+              er.getLineNumber(), er.getFileName());
+          System.exit(1);
+        }
+
+        String dirname;
+        String root = currentRoot;
+        if (root.endsWith("/")) {
+          root = root.substring(0, root.length() - 1);
+        }
+        String module = null;
+
+        int spacePos = line.lastIndexOf(' ');
+        if (spacePos == -1) {
+          dirname = line;
+        } else {
+          dirname = line.substring(0, spacePos);
+          module = line.substring(spacePos + 1);
+        }
+
+        // The directory may not yet exist if we are doing a checkout.
+        File dir = new File(expandTilde(dirname));
+
+        if (module == null) {
+          module = dir.getName();
+        }
+        if (currentType != RepoType.CVS) {
+          if (!currentRootIsRepos) {
+            root = root + "/" + module;
+          }
+          module = null;
+        }
+
+        Checkout checkout = new Checkout(currentType, dir, root, module);
+        checkouts.add(checkout);
+
+        // TODO: This can result in near-duplicates in the checkouts set.  Suppose that the
+        // .mvc-checkouts file contains two lines
+        //   /a/b/c
+        //   /a/b/c-fork-d
+        // with different repositories, and there exists a directory
+        //   /a/b/c-fork-d-branch-e
+        // Then the latter is included twice, once each with the repository of `c` and of
+        // `c-fork-d`.
+        if (search_prefix) {
+          String dirName = dir.getName();
+          FileFilter namePrefixFilter =
+              new FileFilter() {
+                @Override
+                public boolean accept(File file) {
+                  return file.isDirectory() && file.getName().startsWith(dirName);
+                }
+              };
+          File dirParent = dir.getParentFile();
+          if (dirParent == null || !dirParent.isDirectory()) {
+            continue;
+          }
+          File[] siblings = dirParent.listFiles(namePrefixFilter);
+          if (siblings == null) {
+            throw new Error(
+                String.format(
+                    "This cannot happen, because %s (parent of %s) is a directory",
+                    dirParent, dir));
+          }
+          for (File sibling : siblings) {
+            try {
+              checkouts.add(new Checkout(currentType, sibling, root, module));
+            } catch (Checkout.DirectoryDoesNotExist e) {
+              // A directory is an extension of a file in
+              // .mvc-checkouts, but lacks a (eg) .git subdir.  Just
+              // skip that directory.
             }
           }
-          continue;
-        } else if (word1.equals("HGROOT:") || word1.equals("HGREPOS:")) {
-          currentType = RepoType.HG;
-          currentRoot = word2;
-          currentRootIsRepos = word1.equals("HGREPOS:");
-          continue;
-        } else if (word1.equals("GITROOT:") || word1.equals("GITREPOS:")) {
-          currentType = RepoType.GIT;
-          currentRoot = word2;
-          currentRootIsRepos = word1.equals("GITREPOS:");
-          continue;
-        } else if (word1.equals("SVNROOT:") || word1.equals("SVNREPOS:")) {
-          currentType = RepoType.SVN;
-          currentRoot = word2;
-          currentRootIsRepos = word1.equals("SVNREPOS:");
-          continue;
         }
       }
-
-      if (currentRoot == null) {
-        System.err.printf(
-            "need root before directory at line %d of file %s%n",
-            er.getLineNumber(), er.getFileName());
-        System.exit(1);
-      }
-
-      String dirname;
-      String root = currentRoot;
-      if (root.endsWith("/")) {
-        root = root.substring(0, root.length() - 1);
-      }
-      String module = null;
-
-      int spacePos = line.lastIndexOf(' ');
-      if (spacePos == -1) {
-        dirname = line;
-      } else {
-        dirname = line.substring(0, spacePos);
-        module = line.substring(spacePos + 1);
-      }
-
-      // The directory may not yet exist if we are doing a checkout.
-      File dir = new File(expandTilde(dirname));
-
-      if (module == null) {
-        module = dir.getName();
-      }
-      if (currentType != RepoType.CVS) {
-        if (!currentRootIsRepos) {
-          root = root + "/" + module;
-        }
-        module = null;
-      }
-
-      Checkout checkout = new Checkout(currentType, dir, root, module);
-      checkouts.add(checkout);
-
-      // TODO: This can result in near-duplicates in the checkouts set.  Suppose that the
-      // .mvc-checkouts file contains two lines
-      //   /a/b/c
-      //   /a/b/c-fork-d
-      // with different repositories, and there exists a directory
-      //   /a/b/c-fork-d-branch-e
-      // Then the latter is included twice, once each with the repository of `c` and of `c-fork-d`.
-      if (search_prefix) {
-        String dirName = dir.getName();
-        FileFilter namePrefixFilter =
-            new FileFilter() {
-              @Override
-              public boolean accept(File file) {
-                return file.isDirectory() && file.getName().startsWith(dirName);
-              }
-            };
-        File dirParent = dir.getParentFile();
-        if (dirParent == null || !dirParent.isDirectory()) {
-          continue;
-        }
-        File[] siblings = dirParent.listFiles(namePrefixFilter);
-        if (siblings == null) {
-          throw new Error(
-              String.format(
-                  "This cannot happen, because %s (parent of %s) is a directory", dirParent, dir));
-        }
-        for (File sibling : siblings) {
-          try {
-            checkouts.add(new Checkout(currentType, sibling, root, module));
-          } catch (Checkout.DirectoryDoesNotExist e) {
-            // A directory is an extension of a file in
-            // .mvc-checkouts, but lacks a (eg) .git subdir.  Just
-            // skip that directory.
-          }
-        }
-      }
+    } catch (IOException e) {
+      System.err.printf("There is a problem with reading the file %s: %s", file.getPath(), e);
+      throw new Error(e);
     }
     if (debug) {
       System.out.printf("Here are the checkouts:%n");
@@ -940,10 +948,10 @@ public class MultiVersionControl {
   /// entire home directory.
 
   // Find checkouts.  These are indicated by directories named .bzr, CVS,
-  // .hg, or .svn.
+  // .hg, .git, or .svn.
   //
   // With some version control systems, this task is easy:  there is
-  // exactly one .bzr or .hg directory per checkout.  With CVS and SVN,
+  // exactly one .bzr, .hg, or .git directory per checkout.  With CVS and SVN,
   // there is one CVS/.svn directory per directory of the checkout.  It is
   // permitted for one checkout to be made inside another one (though that
   // is bad style), so we must examine every CVS/.svn directory to find all
@@ -992,7 +1000,7 @@ public class MultiVersionControl {
     if (parent != null) {
       // The "return" statements below cause the code not to look for
       // checkouts inside version control directories.  (But it does look
-      // for checkouts inside other checkouts.)  If someone checks in (say)
+      // for checkouts inside other checkouts.)  If someone checks in
       // a .svn file into a Mercurial repository, then removes it, the .svn
       // file remains in the repository even if not in the working copy.
       // That .svn file will cause an exception in dirToCheckoutSvn,
@@ -1043,6 +1051,9 @@ public class MultiVersionControl {
 
   /** Accept only directories that are not symbolic links. */
   static class IsDirectoryFilter implements FileFilter {
+    /** Creates a new IsDirectoryFilter. */
+    public IsDirectoryFilter() {}
+
     @Override
     public boolean accept(File pathname) {
       try {
@@ -1114,18 +1125,17 @@ public class MultiVersionControl {
     Ini ini;
     // There also exist Hg commands that will do this same thing.
     if (hgrcFile.exists()) {
-      try {
-        ini = new Ini(Files.newBufferedReader(hgrcFile.toPath(), UTF_8));
-      } catch (IOException e) {
-        throw new Error("Problem reading file " + hgrcFile);
-      }
-
-      Profile.Section pathsSection = ini.get("paths");
-      if (pathsSection != null) {
-        repository = pathsSection.get("default");
-        if (repository != null && repository.endsWith("/")) {
-          repository = repository.substring(0, repository.length() - 1);
+      try (BufferedReader bufferReader = Files.newBufferedReader(hgrcFile.toPath(), UTF_8)) {
+        ini = new Ini(bufferReader);
+        Profile.Section pathsSection = ini.get("paths");
+        if (pathsSection != null) {
+          repository = pathsSection.get("default");
+          if (repository != null && repository.endsWith("/")) {
+            repository = repository.substring(0, repository.length() - 1);
+          }
         }
+      } catch (IOException e) {
+        throw new UncheckedIOException("Problem reading file " + hgrcFile, e);
       }
     }
 
@@ -1250,7 +1260,7 @@ public class MultiVersionControl {
     final @Nullable File file2;
 
     /**
-     * Createa FilePair
+     * Create a FilePair.
      *
      * @param file1 the first file
      * @param file2 the second file
@@ -1881,7 +1891,7 @@ public class MultiVersionControl {
    * Returns true if there is an invalid certificate for the given directory.
    *
    * @param dir the directory to test
-   * @return true if there is an invalid certificate for the given directory.
+   * @return true if there is an invalid certificate for the given directory
    */
   private boolean invalidCertificate(File dir) {
     String defaultPath = defaultPath(dir);
@@ -1936,7 +1946,7 @@ public class MultiVersionControl {
     @NonNull File defaultDirectory = pb.directory();
     executor.setWorkingDirectory(defaultDirectory);
 
-    ExecuteWatchdog watchdog = new ExecuteWatchdog(timeout * 1000);
+    ExecuteWatchdog watchdog = new ExecuteWatchdog(timeout * 1000L);
     executor.setWatchdog(watchdog);
 
     final ByteArrayOutputStream outStream = new ByteArrayOutputStream();
@@ -1992,13 +2002,28 @@ public class MultiVersionControl {
         System.out.println("preoutput=<<<" + output + ">>>");
       }
       if (!output.equals("")) {
+        boolean noReplacement = false;
         for (Replacer r : replacers) {
           String printableRegexp = r.regexp.toString().replace("\r", "\\r").replace("\n", "\\n");
           if (debug_replacers) {
             System.out.println("midoutput_pre[" + printableRegexp + "]=<<<" + output + ">>>");
           }
+          String orig_output = output;
           // Don't loop, because some regexps will continue to match repeatedly
-          output = r.replaceAll(output);
+          try {
+            output = r.replaceAll(output);
+          } catch (StackOverflowError soe) {
+            noReplacement = true;
+          } catch (Throwable e) {
+            System.out.println("Exception in replaceAll.");
+            System.out.println("  defaultDirectory = " + defaultDirectory);
+            System.out.println("  cmdLine = " + cmdLine);
+            System.out.println("  regexp = " + printableRegexp);
+            System.out.println(
+                "  orig output (size " + orig_output.length() + ") = " + orig_output);
+            System.out.println("  output (size " + output.length() + ") = " + output);
+            throw e;
+          }
           if (debug_replacers) {
             System.out.println("midoutput_post[" + printableRegexp + "]=<<<" + output + ">>>");
           }
@@ -2012,7 +2037,17 @@ public class MultiVersionControl {
                 i + ": " + (int) output.charAt(i) + "\n        \"" + output.charAt(i) + "\"");
           }
         }
+        if (noReplacement) {
+          System.out.println(
+              "No replacement done in " + defaultDirectory + " because output is too long.");
+        }
+        if (output.startsWith("You are not currently on a branch.")) {
+          System.out.println(pb.directory() + ":");
+        }
         System.out.print(output);
+        if (noReplacement) {
+          System.out.println("End of output for " + defaultDirectory + ".");
+        }
       }
     }
 
@@ -2034,6 +2069,9 @@ public class MultiVersionControl {
    * but don't want them to simply hang.
    */
   static class StreamOfNewlines extends InputStream {
+    /** Creates a new StreamOfNewlines. */
+    public StreamOfNewlines() {}
+
     @Override
     public @GTENegativeOne int read() {
       return (int) '\n';
