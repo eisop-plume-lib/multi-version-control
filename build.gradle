@@ -123,7 +123,7 @@ checkerFramework {
 // To use a snapshot version of the Checker Framework.
 if (false) {
   // TODO: change the above test to false when CF is released
-  ext.checkerFrameworkVersion = '3.39.0-eisop-SNAPSHOT'
+  ext.checkerFrameworkVersion = '3.39.0-eisop1'
   dependencies {
     compileOnly "io.github.eisop:checker-qual:${checkerFrameworkVersion}"
     testCompileOnly "io.github.eisop:checker-qual:${checkerFrameworkVersion}"
