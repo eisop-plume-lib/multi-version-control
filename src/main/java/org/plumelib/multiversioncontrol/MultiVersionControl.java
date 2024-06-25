@@ -9,6 +9,7 @@ import java.io.FileFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.io.UnsupportedEncodingException;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -2026,9 +2027,9 @@ public class MultiVersionControl {
       // Filter then print the output.
       String output;
       try {
-        String tmpOutput = outStream.toString(UTF_8);
+        String tmpOutput = outStream.toString(UTF_8.toString());
         output = tmpOutput;
-      } catch (RuntimeException e) {
+      } catch (RuntimeException | UnsupportedEncodingException e) {
         throw new Error("Exception getting process standard output");
       }
 
