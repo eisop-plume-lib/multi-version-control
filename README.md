@@ -11,7 +11,7 @@ See the [documentation](http://plumelib.org/multi-version-control/api/org/plumel
 
 ```
 cd SOME_DIRECTORY
-git clone https://github.com/plume-lib/multi-version-control
+git clone https://github.com/eisop-plume-lib/multi-version-control
 cd multi-version-control
 ./gradlew assemble
 ```
@@ -23,4 +23,4 @@ alias mvc='java -ea -cp SOME_DIRECTORY/multi-version-control/build/libs/multi-ve
 
 ## Other scripts for managing multiple git clones and branches
 
-See the scripts in [manage-git-branches](https://github.com/plume-lib/manage-git-branches).
+See the scripts in [manage-git-branches](https://github.com/eisop-plume-lib/manage-git-branches).
