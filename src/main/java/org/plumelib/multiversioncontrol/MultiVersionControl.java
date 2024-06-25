@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -1105,7 +1106,8 @@ public class MultiVersionControl {
       // apparently it wasn't a version control directory
       return;
     }
-    String pathInRepo = FilesPlume.readFile(repositoryFile).trim();
+
+    String pathInRepo = FilesPlume.readString(repositoryFile.toPath()).trim();
     @NonNull File repoFileRoot = new File(pathInRepo);
     while (repoFileRoot.getParentFile() != null) {
       repoFileRoot = repoFileRoot.getParentFile();
@@ -1126,7 +1128,7 @@ public class MultiVersionControl {
       pathInRepoAtCheckout = dirRelative.getName();
     }
 
-    String repoRoot = FilesPlume.readFile(rootFile).trim();
+    String repoRoot = FilesPlume.readString(rootFile.toPath()).trim();
     checkouts.add(new Checkout(RepoType.CVS, dirRelative, repoRoot, pathInRepoAtCheckout));
   }
 
@@ -1529,7 +1531,17 @@ public class MultiVersionControl {
             case GIT:
               // "--" is to prevent the directory name from being interpreted as a command-line
               // option, if it starts with a hyphen.
-              pb.command(gitExecutable, "clone", "--", c.repository, dirbase);
+              // "--filter=blob:none" makes cloning fast and reduces disk space.  It makes a
+              // subsequent `git blame` command slower, since it has retrieve information from the
+              // remote repository.  It makes pulling from the cloned repository impossible.
+              pb.command(
+                  gitExecutable,
+                  "clone",
+                  "--recursive",
+                  // "--filter=blob:none",
+                  "--",
+                  c.repository,
+                  dirbase);
               addArgs(pb, gitArg);
               break;
             case HG:
@@ -1963,12 +1975,13 @@ public class MultiVersionControl {
     String[] argArray = Arrays.copyOfRange(args, 1, args.length);
     cmdLine.addArguments(argArray);
     DefaultExecuteResultHandler resultHandler = new DefaultExecuteResultHandler();
-    DefaultExecutor executor = new DefaultExecutor();
     @SuppressWarnings("nullness") // defaults to non-null and was never reset
     @NonNull File defaultDirectory = pb.directory();
-    executor.setWorkingDirectory(defaultDirectory);
+    DefaultExecutor executor =
+        DefaultExecutor.builder().setWorkingDirectory(defaultDirectory).get();
 
-    ExecuteWatchdog watchdog = new ExecuteWatchdog(timeout * 1000L);
+    ExecuteWatchdog watchdog =
+        ExecuteWatchdog.builder().setTimeout(Duration.ofSeconds(timeout)).get();
     executor.setWatchdog(watchdog);
 
     final ByteArrayOutputStream outStream = new ByteArrayOutputStream();
