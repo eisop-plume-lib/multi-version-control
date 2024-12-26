@@ -95,7 +95,7 @@ tasks.withType(JavaCompile).configureEach {
   // "-Xlint:-options" is because of JDK 21 warning "source value 8 is obsolete..."
   options.compilerArgs << '-Xlint:all,-processing,-options' << '-Werror'
   options.forkOptions.jvmArgs += '-Xmx2g'
-  options.release = 11
+  options.release = 8
   if (isJava21orHigher) {
     options.compilerArgs << '-Xlint:-this-escape,-options'
   }
