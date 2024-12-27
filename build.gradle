@@ -95,11 +95,9 @@ tasks.withType(JavaCompile).configureEach {
   // "-Xlint:-options" is because of JDK 21 warning "source value 8 is obsolete..."
   options.compilerArgs << '-Xlint:all,-processing,-options' << '-Werror'
   options.forkOptions.jvmArgs += '-Xmx2g'
-  options.release = 8
   if (isJava21orHigher) {
     options.compilerArgs << '-Xlint:-this-escape,-options'
   }
-  options.errorprone.enabled = isJava11orHigher
   options.errorprone {
     disable('ExtendsObject')  // Incorrect when using the Checker Framework
     disable('ReferenceEquality') // Use Interning Checker instead.
