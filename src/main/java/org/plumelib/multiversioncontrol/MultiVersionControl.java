@@ -796,9 +796,9 @@ public class MultiVersionControl {
     }
   }
 
-  ///////////////////////////////////////////////////////////////////////////
-  /// Read checkouts from a file
-  ///
+  // //////////////////////////////////////////////////////////////////////
+  // Read checkouts from a file
+  //
 
   /**
    * Read checkouts from the file (in {@code .mvc-checkouts} format), and add them to the set.
@@ -961,12 +961,12 @@ public class MultiVersionControl {
     }
   }
 
-  ///////////////////////////////////////////////////////////////////////////
-  /// Find checkouts in a directory
-  ///
+  // //////////////////////////////////////////////////////////////////////
+  // Find checkouts in a directory
+  //
 
-  /// Note:  this can be slow, because it examines every directory under your
-  /// entire home directory.
+  // // Note:  this can be slow, because it examines every directory under your
+  // // entire home directory.
 
   // Find checkouts.  These are indicated by directories named .bzr, CVS,
   // .hg, .git, or .svn.
@@ -1262,7 +1262,7 @@ public class MultiVersionControl {
     assert url.toString().startsWith(repoRoot.toString()) : "repoRoot=" + repoRoot + ", url=" + url;
     return new Checkout(RepoType.SVN, dirRelative, url.toString(), null);
 
-    /// Old implementation
+    // // Old implementation
     // String module = url.toString().substring(repoRoot.toString().length());
     // if (module.startsWith("/")) {
     //   module = module.substring(1);
@@ -1330,9 +1330,9 @@ public class MultiVersionControl {
     return new FilePair(r1, r2);
   }
 
-  ///////////////////////////////////////////////////////////////////////////
-  /// Process checkouts
-  ///
+  // //////////////////////////////////////////////////////////////////////
+  // Process checkouts
+  //
 
   /**
    * Change pb's command by adding the given argument at the end.
@@ -1535,14 +1535,7 @@ public class MultiVersionControl {
               // "--filter=blob:none" makes cloning fast and reduces disk space.  It makes a
               // subsequent `git blame` command slower, since it has retrieve information from the
               // remote repository.  It makes pulling from the cloned repository impossible.
-              pb.command(
-                  gitExecutable,
-                  "clone",
-                  "--recursive",
-                  // "--filter=blob:none",
-                  "--",
-                  c.repository,
-                  dirbase);
+              pb.command(gitExecutable, "clone", "--recursive", "--", c.repository, dirbase);
               addArgs(pb, gitArg);
               break;
             case HG:
