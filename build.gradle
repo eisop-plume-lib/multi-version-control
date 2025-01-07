@@ -4,7 +4,7 @@ buildscript {
       // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
       // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
       // Only works on JDK 11+.
-      classpath 'com.diffplug.spotless:spotless-plugin-gradle:6.25.0'
+      classpath 'com.diffplug.spotless:spotless-plugin-gradle:7.0.1'
     }
   }
 }
@@ -20,7 +20,7 @@ plugins {
   id('net.ltgt.errorprone') version '4.1.0'
 
   // Checker Framework pluggable type-checking
-  id 'org.checkerframework' version '0.6.45'
+  id 'org.checkerframework' version '0.6.48'
 
   // To show task list as a tree, run: ./gradlew <taskname> taskTree
   id 'com.dorongold.task-tree' version '4.0.0'
@@ -65,7 +65,7 @@ if (isJava11orHigher) {
 
       // define the steps to apply to those files
       trimTrailingWhitespace()
-      indentWithSpaces(2)
+      leadingTabsToSpaces(2)
       endWithNewline()
     }
     java {
@@ -76,7 +76,7 @@ if (isJava11orHigher) {
     groovyGradle {
       target '**/*.gradle'
       greclipse()  // which formatter Spotless should use to format .gradle files.
-      indentWithSpaces(2)
+      leadingTabsToSpaces(2)
       trimTrailingWhitespace()
       // endWithNewline() // Don't want to end empty files with a newline
     }
@@ -124,6 +124,7 @@ if (true) {
 dependencies {
   compileOnly "io.github.eisop:checker-qual:${checkerFrameworkVersion}"
   testCompileOnly "io.github.eisop:checker-qual:${checkerFrameworkVersion}"
+  checkerFramework "io.github.eisop:checker-qual:${checkerFrameworkVersion}"
   checkerFramework "io.github.eisop:checker:${checkerFrameworkVersion}"
 }
 
