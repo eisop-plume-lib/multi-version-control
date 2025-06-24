@@ -87,11 +87,11 @@ tasks.withType(JavaCompile).configureEach {
   if (isJava21orHigher) {
     options.compilerArgs << '-Xlint:-this-escape,-options'
   }
+  options.errorprone.enabled = isJava17orHigher
   options.errorprone {
     disable('ExtendsObject')  // Incorrect when using the Checker Framework
     disable('ReferenceEquality') // Use Interning Checker instead.
   }
-  options.errorprone.enabled = isJava17orHigher
 }
 
 // Checker Framework pluggable type-checking
@@ -104,7 +104,7 @@ if (true) {
 } else {
   // To use a snapshot version of the EISOP Checker Framework.
   // TODO: Change the above test to false to use a snapshot.
-  ext.checkerFrameworkVersion = '3.49.3-eisop1'
+  // ext.checkerFrameworkVersion = '3.49.3-eisop1-SNAPSHOT'
   configurations.all {
     resolutionStrategy.cacheChangingModulesFor 0, 'minutes'
   }
