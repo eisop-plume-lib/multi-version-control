@@ -2022,7 +2022,7 @@ public class MultiVersionControl {
       try {
         String tmpOutput = outStream.toString(UTF_8);
         output = tmpOutput;
-      } catch (RuntimeException | UnsupportedEncodingException e) {
+      } catch (RuntimeException e) {
         throw new Error("Exception getting process standard output");
       }
 
