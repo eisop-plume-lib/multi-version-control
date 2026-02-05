@@ -1375,7 +1375,7 @@ public class MultiVersionControl {
      * @param regexp the regular expression matching text that should be replaced
      * @param replacement the replacement text
      */
-    public Replacer(@Regex String regexp, String replacement) {
+    Replacer(@Regex String regexp, String replacement) {
       this.regexp = Pattern.compile(regexp);
       this.replacement = replacement;
     }
@@ -1387,7 +1387,7 @@ public class MultiVersionControl {
      * @param s the string in which to perform replacements
      * @return the string, after replacements have been performed
      */
-    public String replaceAll(String s) {
+    String replaceAll(String s) {
       Matcher matcher = regexp.matcher(s);
       return matcher.replaceAll(replacement);
     }
@@ -2020,7 +2020,7 @@ public class MultiVersionControl {
       // Filter then print the output.
       String output;
       try {
-        String tmpOutput = outStream.toString(UTF_8.toString());
+        String tmpOutput = outStream.toString(UTF_8);
         output = tmpOutput;
       } catch (RuntimeException | UnsupportedEncodingException e) {
         throw new Error("Exception getting process standard output");
