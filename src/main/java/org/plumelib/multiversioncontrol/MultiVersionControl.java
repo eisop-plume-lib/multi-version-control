@@ -1957,7 +1957,8 @@ public class MultiVersionControl {
    *     normally. Ordinarily, output is displayed only if the process completed erroneously.
    * @return the status code: 0 for normal completion, non-zero for erroneous completion
    */
-  int perform_command(ProcessBuilder pb, List<Replacer> replacers, boolean showNormalOutput) {
+  private int perform_command(
+      ProcessBuilder pb, List<Replacer> replacers, boolean showNormalOutput) {
     if (show) {
       System.out.println(command(pb));
     }
